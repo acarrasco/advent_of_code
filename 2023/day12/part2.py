@@ -4,12 +4,16 @@ from collections import namedtuple
 OPERATIONAL = '.'
 DAMAGED = '#'
 UNKNOWN = '?'
+SENTINEL = '.'
 
 def parse_line(line):
     layout, groups = line.strip().split(' ')
     expanded_layout = '?'.join([layout] * 5)
     expanded_groups = ','.join([groups] * 5)
-    return expanded_layout, tuple(int(group) for group in expanded_groups.split(',')), False
+    return expanded_layout + SENTINEL, tuple(int(group) for group in expanded_groups.split(','))
+
+def first_different(layout, c):
+    return next((i for i, x in enumerate(layout) if x != c), len(layout))
 
 def memoize(f):
     cache = {}
@@ -21,45 +25,30 @@ def memoize(f):
     return memoized
 
 @memoize
-def count_layouts(springs, damaged_group_sizes, running_group):
+def count_layouts(springs, damaged_group_sizes):
     expected_damaged = sum(damaged_group_sizes)
     if expected_damaged == 0:
-        if springs.count(DAMAGED) == 0:
-            return 1
-        else:
-            return 0
-    operating = springs.count(OPERATIONAL)
-    max_damaged = len(springs) - operating
+        actual_damage = springs.count(DAMAGED)
+        return int(actual_damage == 0)
 
+    max_damaged = len(springs) - springs.count(OPERATIONAL)
+    
     if expected_damaged > max_damaged:
         return 0
-
-    if not springs:
-        return int(sum(damaged_group_sizes) == 0)
     
-    springs_head, springs_tail = springs[0], springs[1:]
+    if springs[0] == OPERATIONAL:
+        next_non_operational = first_different(springs, OPERATIONAL)
+        return count_layouts(springs[next_non_operational:], damaged_group_sizes)
+
+    s = 0
     groups_head, *groups_tail = damaged_group_sizes
-    groups_tail = tuple(groups_tail)
+    can_match_group = springs[groups_head] != DAMAGED and OPERATIONAL not in springs[:groups_head]
 
-    if springs_head == OPERATIONAL:
-        if groups_head == 0:
-            return count_layouts(springs_tail, groups_tail, False)
-        elif running_group:
-            return 0
-        else:
-            return count_layouts(springs_tail, damaged_group_sizes, False)
-    elif springs_head == DAMAGED:
-        if groups_head == 0:
-            return 0
-        else:
-            return count_layouts(springs_tail, (groups_head - 1,) + groups_tail, True)
-    elif springs_head == UNKNOWN and groups_head == 0:
-        return count_layouts(springs_tail, groups_tail, False)
-    elif running_group:
-        return count_layouts(springs_tail, (groups_head - 1,) + groups_tail, True)
-    
-    return (count_layouts(DAMAGED + springs_tail, damaged_group_sizes, False) + 
-            count_layouts(springs_tail, damaged_group_sizes, False))
+    if can_match_group:
+        s += count_layouts(springs[groups_head + 1:], tuple(groups_tail))
+    if springs[0] == UNKNOWN:
+        s += count_layouts(springs[1:], damaged_group_sizes)
+    return s
 
 
 print(sum(count_layouts(*parse_line(line)) for line in sys.stdin))
