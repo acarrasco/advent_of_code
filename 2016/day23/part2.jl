@@ -173,7 +173,7 @@ mutable struct State
     ic::Int
     registers::Dict{Char, Int}
     instructions::Vector{Instruction}
-    optimized::Dict{Int, Instruction} # this is an overlay of Add and AddMul instructions 
+    optimized::Vector{Instruction} 
 end
 
 function valueOf(register::Char, state::State)::Int
@@ -330,22 +330,17 @@ end
 function optimizeInstruction!(
     instruction::Jnz,
     idx::Int,
-    instructions::Vector{Instruction},
-    optimized::Dict{Int, Instruction})
+    optimized::Vector{Instruction})
 
     offset = instruction.offset
     if offset == -2
         # add an addition to the overlay if necessary
-        opt = optimizeAdditive(instructions[idx+offset:idx])
+        opt = optimizeAdditive(optimized[idx+offset:idx])
         if opt !== nothing
             optimized[idx+offset] = opt
         end
     elseif offset == -5
-        overlaid = Vector{Instruction}()
-        for i = idx+offset:idx
-            push!(overlaid, get(optimized, i, instructions[i]))
-        end
-        opt = optimizeMultiplicative(overlaid)
+        opt = optimizeMultiplicative(optimized[idx+offset:idx])
         if opt !== nothing
             # we overlay the instruction after the cpy
             optimized[idx+offset+1] = opt
@@ -356,22 +351,21 @@ end
 function optimizeInstruction!(
     _,
     idx::Int,
-    instructions::Vector{Instruction},
-    optimized::Dict{Int, Instruction})
+    optimized::Vector{Instruction})
     # instructions other than JNZ are not optimized
 end
 
-function optimize(instructions::Vector{Instruction})::Dict{Int, Instruction}
-    optimized = Dict{Int, Instruction}()
+function optimize(instructions::Vector{Instruction})::Vector{Instruction}
+    optimized = copy(instructions)
     for (i, ins) in enumerate(instructions)
-        optimizeInstruction!(ins, i, instructions, optimized)
+        optimizeInstruction!(ins, i, optimized)
     end
     return optimized
 end
 
 function step!(state::State)
     # printState(state)
-    instruction = get(state.optimized, state.ic, state.instructions[state.ic])
+    instruction = state.optimized[state.ic]
     exec!(instruction, state)
 end
 
