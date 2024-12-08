@@ -14,6 +14,8 @@ def parse(lines):
     return [parse_line(line.strip()) for line in lines]
 
 def solve_equation(calibration_value, operands, acc):
+    if acc > calibration_value:
+        return 0
     if not operands:
         if calibration_value == acc:
             return calibration_value
