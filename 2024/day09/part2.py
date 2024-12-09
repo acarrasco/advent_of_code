@@ -15,18 +15,15 @@ def block_iterator(description):
         block_start += size
 
 def find_empty_big_enough(empty_blocks, file_block_id, file_size):
-    i = len(empty_blocks) - 1
-    while i >= 0:
-        empty_block_id, empty_size = empty_blocks[i]
+    for i, (empty_block_id, empty_size) in enumerate(empty_blocks):
         if empty_block_id > file_block_id:
             return -1
         if empty_size >= file_size:
             return i
-        i -= 1
     return -1
 
 def defragmented_iterator(description):
-    empty_blocks = [(block_id, size) for block_id, file_id, size in block_iterator(description) if file_id is False and size > 0][::-1]
+    empty_blocks = [(block_id, size) for block_id, file_id, size in block_iterator(description) if file_id is False and size > 0]
     file_blocks = [(block_id, file_id, size) for block_id, file_id, size in block_iterator(description) if file_id is not False]
     while file_blocks:
         block_id, file_id, file_size = file_blocks.pop()
