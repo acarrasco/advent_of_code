@@ -51,13 +51,15 @@ def move(warehouse, robot, direction):
     di, dj = direction
     ni, nj = i + di, j + dj
 
-    if (ni, nj) not in warehouse:
-        return warehouse, (ni, nj)
-    elif can_push(warehouse, (ni, nj), direction):
-        push(warehouse, (ni, nj), direction)
+    if (ni, nj) not in warehouse or try_push(warehouse, (ni, nj), direction):
         return warehouse, (ni, nj)
     else:
         return warehouse, robot
+
+def try_push(warehouse, position, direction):
+    if can_push(warehouse, position, direction):
+        push(warehouse, position, direction)
+        return True
 
 def can_push(warehouse, position, direction, other=False):
     if warehouse.get(position) == WALL:
@@ -67,13 +69,13 @@ def can_push(warehouse, position, direction, other=False):
     di, dj = direction
     ni, nj = i + di, j + dj
 
-    if di == 0 or other:
-        return (ni, nj) not in warehouse or can_push(warehouse, (ni, nj), direction)
-    else:
-        other_pos = other_half(warehouse, position)
-        this_can_move = (ni, nj) not in warehouse or can_push(warehouse, (ni, nj), direction)
-        other_can_move = can_push(warehouse, other_pos, direction, True)
-        return this_can_move and other_can_move
+    empty_destination = (ni, nj) not in warehouse
+    this_can_move = empty_destination or can_push(warehouse, (ni, nj), direction)
+
+    other_moved = not di or other
+    other_can_move = other_moved or can_push(warehouse, other_half(warehouse, position), direction, True)
+
+    return this_can_move and other_can_move
 
 def push(warehouse, position, direction, other=False):
     if warehouse.get(position) == WALL:
@@ -83,15 +85,15 @@ def push(warehouse, position, direction, other=False):
     di, dj = direction
     ni, nj = i + di, j + dj
 
-    c = warehouse[position]
     if (ni, nj) in warehouse:
         push(warehouse, (ni, nj), direction)
-    if di and not other:
-        op = other_half(warehouse, position)
-        push(warehouse, op, direction, True)
 
+    need_move_other = di and not other
+    if need_move_other:
+        push(warehouse, other_half(warehouse, position), direction, True)
+
+    warehouse[ni, nj] = warehouse[position]
     del warehouse[position]
-    warehouse[ni, nj] = c
 
 def print_warehouse(warehouse, robot):
     rows, _ = max(warehouse)
